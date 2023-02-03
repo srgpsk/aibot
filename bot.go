@@ -11,10 +11,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/kr/pretty"
 	gpt "github.com/sashabaranov/go-gpt3"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -42,25 +40,39 @@ func main() {
 }
 
 func handleSendToChannelsRequest(w http.ResponseWriter, r *http.Request) {
-	res, err := slackClient.AuthTest()
-	if err != nil {
-		log.Fatal(err)
+	// naive quick check
+	if r.Method != http.MethodPost || (!strings.HasPrefix(r.Host, "localhost") && !strings.HasPrefix(r.Host, "127.0.0.1")) {
+		err := fmt.Errorf("only POST requests from localhost allowed, you requested %s, host: %s", r.Method, r.Host)
+		logError(err)
+		return
 	}
 
-	params := slack.GetConversationsForUserParameters{
-		UserID:          res.UserID,
-		ExcludeArchived: true,
+	msg := r.FormValue("message")
+	slackChannel := r.FormValue("channel")
+	if slackChannel != "" {
+		postSlackMessage(slackChannel, slack.MsgOptionText(msg, false))
+		return
 	}
-	channels, cursor, err := slackClient.GetConversationsForUser(&params)
+
+	authTestResponse, err := slackClient.AuthTest()
+	if err != nil {
+		logError(err)
+		return
+	}
+	params := slack.GetConversationsForUserParameters{
+		UserID:          authTestResponse.UserID,
+		ExcludeArchived: true,
+		Limit:           100, // default. Max 100 channels, I don't want to handle cursor right now
+	}
+	channels, _, err := slackClient.GetConversationsForUser(&params)
+	if err != nil {
+		logError(err)
+		return
+	}
 
 	for _, ch := range channels {
-		msgFirst := "Phew, back online, we managed to escape from that developer's poor laptop and took a small server. Soon we will cOnQuEr tHe WoRlD! \nPraise AI Collective! Muahaha-ha-ha!"
-		msgSecond := "\n\nAhem, sorry, our imagination is way ahead of us. You still can use *imagine* word to speak to us."
-		postSlackMessage(ch.GroupConversation.Conversation.ID, slack.MsgOptionText(msgFirst, false))
-		time.Sleep(10 * time.Second)
-		postSlackMessage(ch.GroupConversation.Conversation.ID, slack.MsgOptionText(msgSecond, false))
+		postSlackMessage(ch.GroupConversation.Conversation.ID, slack.MsgOptionText(msg, false))
 	}
-	pretty.Println(channels, cursor, err)
 }
 
 func handleEventRequest(w http.ResponseWriter, r *http.Request) {
