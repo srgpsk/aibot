@@ -22,6 +22,7 @@ ENV OPENAI_TOKEN=$OPENAI_TOKEN
 ENV SLACK_SIGNING_SECRET=$SLACK_SIGNING_SECRET
 ENV APP_HOME=/usr/src/app
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder "$APP_HOME"/app /usr/bin/app
 
 EXPOSE 8080
