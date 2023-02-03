@@ -50,7 +50,9 @@ func handleSendToChannelsRequest(w http.ResponseWriter, r *http.Request) {
 	msg := r.FormValue("message")
 	slackChannel := r.FormValue("channel")
 	if slackChannel != "" {
-		postSlackMessage(slackChannel, slack.MsgOptionText(msg, false))
+		if err := postSlackMessage(slackChannel, slack.MsgOptionText(msg, false)); err != nil {
+			logError(err)
+		}
 		return
 	}
 
@@ -71,7 +73,9 @@ func handleSendToChannelsRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, ch := range channels {
-		postSlackMessage(ch.GroupConversation.Conversation.ID, slack.MsgOptionText(msg, false))
+		if err := postSlackMessage(ch.GroupConversation.Conversation.ID, slack.MsgOptionText(msg, false)); err != nil {
+			logError(err)
+		}
 	}
 }
 
