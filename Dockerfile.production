@@ -1,23 +1,28 @@
 FROM golang:1.19-alpine as builder
 
 ENV APP_HOME=/usr/src/app
-
 WORKDIR ${APP_HOME}
 
 # pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
-COPY bot.go .env ./
+COPY bot.go ./
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -v -o app
 
 # production build
 FROM scratch
 
+ARG SLACK_TOKEN
+ARG OPENAI_TOKEN
+ARG SLACK_SIGNING_SECRET
+
+ENV SLACK_TOKEN=$SLACK_TOKEN
+ENV OPENAI_TOKEN=$OPENAI_TOKEN
+ENV SLACK_SIGNING_SECRET=$SLACK_SIGNING_SECRET
 ENV APP_HOME=/usr/src/app
 
-WORKDIR ${APP_HOME}
-COPY --from=builder "$APP_HOME"/app $APP_HOME
+COPY --from=builder "$APP_HOME"/app /usr/bin/app
 
 EXPOSE 8080
 
